@@ -9,7 +9,6 @@ library(ggrepel)
 library(clusterProfiler)
 library(org.Mm.eg.db)
 library(stringr)
-library(boot)
 
 # --- Save Summarized Experiment ------------------
 se <- readRDS(file = "./results/se.rds")
@@ -55,7 +54,7 @@ bootstrap_de <- function(
 M_As_M_Un <- bootstrap_de(
   se=se[,se$sex=="Male" & 
           grepl("As|Un", se$metal)] %>%
-    (\(se){
+    (/(se){
       se$metal = factor(se$metal, levels=c("Un", "As"));
       se})(), 
   formula = ~metal, 
@@ -69,7 +68,7 @@ saveRDS(M_As_M_Un, file = "./results/M_As_M_Un.rds")
 M_Cd_M_Un <- bootstrap_de(
   se=se[,se$sex=="Male" & 
           grepl("Cd|Un", se$metal)] %>%
-    (\(se){
+    (/(se){
       se$metal = factor(se$metal, levels=c("Un", "Cd"));
       se})(), 
   formula = ~metal, 
@@ -81,7 +80,7 @@ saveRDS(M_Cd_M_Un, file = "./results/M_Cd_M_Un.rds")
 # Male Pb vs Un
 M_Pb_M_Un <- bootstrap_de(
   se = se[, se$sex == "Male" & grepl("Pb|Un", se$metal)] %>%
-    (\(se) { se$metal <- factor(se$metal, levels = c("Un", "Pb")); se })(),
+    (/(se) { se$metal <- factor(se$metal, levels = c("Un", "Pb")); se })(),
   formula = ~metal, 
   nboot = 50
 )
@@ -91,7 +90,7 @@ saveRDS(M_Pb_M_Un, file = "./results/M_Pb_M_Un.rds")
 # Male Cr vs Un
 M_Cr_M_Un <- bootstrap_de(
   se = se[, se$sex == "Male" & grepl("Cr|Un", se$metal)] %>%
-    (\(se) { se$metal <- factor(se$metal, levels = c("Un", "Cr")); se })(),
+    (/(se) { se$metal <- factor(se$metal, levels = c("Un", "Cr")); se })(),
   formula = ~metal, 
   nboot = 50
 )
@@ -101,7 +100,7 @@ saveRDS(M_Cr_M_Un, file = "./results/M_Cr_M_Un.rds")
 # Male Mix vs Un
 M_Mix_M_Un <- bootstrap_de(
   se = se[, se$sex == "Male" & grepl("Mx|Un", se$metal)] %>%
-    (\(se) { se$metal <- factor(se$metal, levels = c("Un", "Mx")); se })(),
+    (/(se) { se$metal <- factor(se$metal, levels = c("Un", "Mx")); se })(),
   formula = ~metal, 
   nboot = 50
 )
@@ -111,7 +110,7 @@ saveRDS(M_Mix_M_Un, file = "./results/M_Mix_M_Un.rds")
 # Female As vs Un
 F_As_F_Un <- bootstrap_de(
   se = se[, se$sex == "Female" & grepl("As|Un", se$metal)] %>%
-    (\(se) { se$metal <- factor(se$metal, levels = c("Un", "As")); se })(),
+    (/(se) { se$metal <- factor(se$metal, levels = c("Un", "As")); se })(),
   formula = ~metal, 
   nboot = 50
 )
@@ -121,7 +120,7 @@ saveRDS(F_As_F_Un, file = "./results/F_As_F_Un.rds")
 # Female Cd vs Un
 F_Cd_F_Un <- bootstrap_de(
   se = se[, se$sex == "Female" & grepl("Cd|Un", se$metal)] %>%
-    (\(se) { se$metal <- factor(se$metal, levels = c("Un", "Cd")); se })(),
+    (/(se) { se$metal <- factor(se$metal, levels = c("Un", "Cd")); se })(),
   formula = ~metal, 
   nboot = 50
 )
@@ -131,7 +130,7 @@ saveRDS(F_Cd_F_Un, file = "./results/F_Cd_F_Un.rds")
 # Female Pb vs Un
 F_Pb_F_Un <- bootstrap_de(
   se = se[, se$sex == "Female" & grepl("Pb|Un", se$metal)] %>%
-    (\(se) { se$metal <- factor(se$metal, levels = c("Un", "Pb")); se })(),
+    (/(se) { se$metal <- factor(se$metal, levels = c("Un", "Pb")); se })(),
   formula = ~metal, 
   nboot = 50
 )
@@ -141,7 +140,7 @@ saveRDS(F_Pb_F_Un, file = "./results/F_Pb_F_Un.rds")
 # Female Cr vs Un
 F_Cr_F_Un <- bootstrap_de(
   se = se[, se$sex == "Female" & grepl("Cr|Un", se$metal)] %>%
-    (\(se) { se$metal <- factor(se$metal, levels = c("Un", "Cr")); se })(),
+    (/(se) { se$metal <- factor(se$metal, levels = c("Un", "Cr")); se })(),
   formula = ~metal,
   nboot = 50
 )
@@ -151,7 +150,7 @@ saveRDS(F_Cr_F_Un, file = "./results/F_Cr_F_Un.rds")
 # Female Mix vs Un
 F_Mix_F_Un <- bootstrap_de(
   se = se[, se$sex == "Female" & grepl("Mx|Un", se$metal)] %>%
-    (\(se) { se$metal <- factor(se$metal, levels = c("Un", "Mx")); se })(),
+    (/(se) { se$metal <- factor(se$metal, levels = c("Un", "Mx")); se })(),
   formula = ~metal, 
   nboot = 50
 )
@@ -440,12 +439,100 @@ EnhancedVolcano::EnhancedVolcano(
   subtitle = "Differential Expression of M Mix vs Un RNA-Seq Data") # subtitle
 
 # --- Deconvolution Test ----------------
-deconv_test <- se %>%
+# Bring in zellkonverter package
+library(zellkonverter)
+
+# Read the H5AD file as a SingleCellExperiment object
+sce_object <- readH5AD("mydata.h5ad")
+
+table(rownames(sce_object) %in% rownames(se)) #checking to see how many genes in your SE are in single cell experiment
+
+##first, separate out heart data only from scRNASeq Summarized Experiment
+sce_heart <- sce_object[, grepl("^heart", colnames(sce_object))] 
+
+###renaming "X" column to logcounts for the rest of the analysis
+assayNames(sce_heart)[assayNames(sce_heart) == "X"] <- "logcounts"
+assayNames(sce_heart) #verifying that the "X" assay name is now logcounts to be more informative
+
+E  <- assay(sce_heart, "logcounts")  
+ct <- sce_heart$cell_type
+
+##making signature matrix averaging code
+celltypes <- unique(as.character(ct))
+heart_sig <- sapply(celltypes, function(k) {
+  idx <- which(ct == k)
+  rowMeans(as.matrix(E[, idx, drop = FALSE]))
+})
+heart_sig <- (2^heart_sig) - 1
+colnames(heart_sig) <- celltypes
+
+##Get bulk counts and bulk gene IDs
+bulk_counts <- assay(se, "counts")
+bulk_genes  <- rownames(se)
+
+##Make sure rownames(heart_sig) are the same ID type as bulk_genes
+table(rownames(heart_sig) %in% rownames(se))
+
+common_genes <- intersect(rownames(heart_sig), bulk_genes)
+
+##Subset to common genes
+heart_sig_use <- heart_sig[common_genes, , drop = FALSE]
+se_use<- se[common_genes, ]
+
+##Create a tidy representation of data
+se_tidy <- tidybulk(se_use)
+###Collapse duplicates by taking the mean (or sum) of counts for each ENSEMBL ID across samples
+se_tidy_collapsed <- se_tidy %>%
+  group_by(.feature) %>%                  # group only by ENSEMBL ID
+  summarise(across(where(is.numeric), mean), .groups = "drop")
+se_tidy_collapsed <- se_tidy_collapsed %>% column_to_rownames(var = ".feature")
+
+##convert back to a summarized experiment object
+se_tidy_collapsed <- SummarizedExperiment(
+  assays = list(counts = as.matrix(se_tidy_collapsed)),
+  rowData = data.frame(gene_id = rownames(se_tidy_collapsed))
+)
+
+# Deconvolve using your heart signature
+se_tidy_deconv <- se_tidy_collapsed %>%
   deconvolve_cellularity(
-    sample = sample, 
-    transcript = gene_id, 
-    method = "cibersort", 
-    action="get")
+    method = "cibersort",
+    reference = heart_sig_use
+  )
+
+#visualize deconvolution results
+library(ggplot2)
+library(tidyverse)
+
+#Extract colData as data frame
+deconv_df <- as.data.frame(colData(se_tidy_deconv)) %>%
+  rownames_to_column("sample")
+
+#Pivot longer for ggplot
+deconv_long <- deconv_df %>%
+  pivot_longer(
+    cols = -sample,
+    names_to = "cell_type",
+    values_to = "proportion"
+  )
+
+# Stacked bar plot
+ggplot(deconv_long, aes(x = sample, y = proportion, fill = cell_type)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "Sample", y = "Proportion", fill = "Cell Type",
+       title = "Cell Type Proportions per Sample")
+
+
+
+
+
+
+
+
+
+
 
 
 
